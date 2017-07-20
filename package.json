@@ -1,0 +1,12 @@
+{
+  "name": "photogroove",
+  "version": "0.0.1",
+  "description": "First steps with elm creating a photogroove app according to elm-in-action",
+  "main": "index.html",
+  "scripts": {
+    "format": "elm-format PhotoGroove.elm",
+    "build": "npm run format && elm-make PhotoGroove.elm --output elm.js"
+  },
+  "author": "b33rduck",
+  "license": "ISC"
+}

@@ -11,6 +11,7 @@ urlPrefix =
     "http://elm-in-action.com/"
 
 
+viewThumbnail : String -> Photo -> Html Msg
 viewThumbnail selectedUrl thumbnail =
     img
         [ src (urlPrefix ++ thumbnail.url)
@@ -20,9 +21,42 @@ viewThumbnail selectedUrl thumbnail =
         []
 
 
+viewSizeChooser : ThumbnailSize -> Html Msg
+viewSizeChooser size =
+    label []
+        [ input [ type_ "radio", name "size" ] []
+        , text (sizeToString size)
+        ]
+
+
+sizeToString : ThumbnailSize -> String
+sizeToString size =
+    case size of
+        Small ->
+            "small"
+
+        Medium ->
+            "medium"
+
+        Large ->
+            "large"
+
+
+type ThumbnailSize
+    = Small
+    | Medium
+    | Large
+
+
+type alias Msg =
+    { operation : String, data : String }
+
+
+view : Model -> Html Msg
 view model =
     div [ class "content" ]
         [ h1 [] [ text "Photo Groove" ]
+        , button [ onClick { operation = "SUPRISE_ME", data = "" } ] [ text "Suprise Me!" ]
         , div [ id "thumbnails" ] (List.map (viewThumbnail model.selectedUrl) model.photos)
         , img [ class "large", src (urlPrefix ++ "large/" ++ model.selectedUrl) ] []
         ]
@@ -35,6 +69,7 @@ type alias Photo =
 type alias Model =
     { photos : List Photo
     , selectedUrl : String
+    , choosenSize : ThumbnailSize
     }
 
 
@@ -46,20 +81,26 @@ initialModel =
         , { url = "3.jpeg" }
         ]
     , selectedUrl = "1.jpeg"
+    , choosenSize = Medium
     }
 
 
-photoArray :
-    Array Photo
-photoArray = 
+photoArray : Array Photo
+photoArray =
     Array.fromList initialModel.photos
 
 
+update : Msg -> Model -> Model
 update msg model =
-    if msg.operation == "SELECT_PHOTO" then
-        { model | selectedUrl = msg.data }
-    else
-        model
+    case msg.operation of
+        "SELECT_PHOTO" ->
+            { model | selectedUrl = msg.data }
+
+        "SUPRISE_ME" ->
+            { model | selectedUrl = "2.jpeg" }
+
+        _ ->
+            model
 
 
 main =
