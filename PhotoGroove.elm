@@ -36,6 +36,24 @@ viewSizeChooser selectedSize size =
         ]
 
 
+view : Model -> Html Msg
+view model =
+    div [ class "content" ]
+        [ h1 [] [ text "Photo Groove" ]
+        , button [ onClick SupriseMe ] [ text "Suprise Me!" ]
+        , h3 [] [ text "Thumbnail Size:" ]
+        , div [ id "choose-size" ] (List.map (viewSizeChooser model.choosenSize) [ Small, Medium, Large ])
+        , div [ id "thumbnails", class (sizeToClass model.choosenSize) ] (List.map (viewThumbnail model.selectedUrl) model.photos)
+        , img [ class "large", src (urlPrefix ++ "large/" ++ model.selectedUrl) ] []
+        ]
+
+
+type ThumbnailSize
+    = Small
+    | Medium
+    | Large
+
+
 sizeToString : ThumbnailSize -> String
 sizeToString size =
     case size of
@@ -62,27 +80,24 @@ sizeToClass size =
             "large"
 
 
-type ThumbnailSize
-    = Small
-    | Medium
-    | Large
-
-
-view : Model -> Html Msg
-view model =
-    div [ class "content" ]
-        [ h1 [] [ text "Photo Groove" ]
-        , button [ onClick SupriseMe ] [ text "Suprise Me!" ]
-        , h3 [] [ text "Thumbnail Size:" ]
-        , div [ id "choose-size" ] (List.map (viewSizeChooser model.choosenSize) [ Small, Medium, Large ])
-        , div [ id "thumbnails", class (sizeToClass model.choosenSize) ] (List.map (viewThumbnail model.selectedUrl) model.photos)
-        , img [ class "large", src (urlPrefix ++ "large/" ++ model.selectedUrl) ] []
-        ]
-
-
 type alias Photo =
     { url : String }
 
+
+photoArray : Array Photo
+photoArray =
+    Array.fromList initialModel.photos
+
+
+getPhotoUrl : Int -> String
+getPhotoUrl index =
+    case Array.get index photoArray of
+        Just photo ->
+            photo.url
+
+        Nothing ->
+            ""
+            
 
 type alias Model =
     { photos : List Photo
@@ -103,24 +118,9 @@ initialModel =
     }
 
 
-photoArray : Array Photo
-photoArray =
-    Array.fromList initialModel.photos
-
-
 randomPhotoPicker : Random.Generator Int
 randomPhotoPicker =
     Random.int 0 (Array.length photoArray - 1)
-
-
-getPhotoUrl : Int -> String
-getPhotoUrl index =
-    case Array.get index photoArray of
-        Just photo ->
-            photo.url
-
-        Nothing ->
-            ""
 
 
 type Msg
