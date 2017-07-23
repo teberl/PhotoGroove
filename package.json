@@ -5,7 +5,7 @@
   "main": "index.html",
   "scripts": {
     "format": "elm-format PhotoGroove.elm",
-    "build": "npm run format && elm-make PhotoGroove.elm --output elm.js"
+    "build": "npm run format && elm-make PhotoGroove.elm --output elm.js --warn"
   },
   "author": "b33rduck",
   "license": "ISC"
