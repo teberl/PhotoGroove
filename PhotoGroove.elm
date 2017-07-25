@@ -5,6 +5,7 @@ import Html.Events exposing (onClick)
 import Html.Attributes exposing (..)
 import Array exposing (Array)
 import Random
+import Http
 
 
 urlPrefix : String
@@ -36,8 +37,8 @@ viewSizeChooser selectedSize size =
         ]
 
 
-viewLarge : Maybe String -> Html Msg
-viewLarge maybeUrl =
+viewLargeImage : Maybe String -> Html Msg
+viewLargeImage maybeUrl =
     case maybeUrl of
         Nothing ->
             text ""
@@ -54,7 +55,7 @@ view model =
         , h3 [] [ text "Thumbnail Size:" ]
         , div [ id "choose-size" ] (List.map (viewSizeChooser model.choosenSize) [ Small, Medium, Large ])
         , div [ id "thumbnails", class (sizeToClass model.choosenSize) ] (List.map (viewThumbnail model.selectedUrl) model.photos)
-        , viewLarge model.selectedUrl
+        , viewLargeImage model.selectedUrl
         ]
 
 
@@ -107,8 +108,15 @@ initialModel =
     { photos = []
     , selectedUrl = Nothing
     , loadingError = Nothing
-    , choosenSize = Small
+    , choosenSize = Medium
     }
+
+
+initialCmd : Cmd Msg
+initialCmd =
+    "http://elm-in-action.com/photos/list"
+        |> Http.getString
+        |> Http.send LoadPhotos
 
 
 type Msg
@@ -116,6 +124,7 @@ type Msg
     | SelectByIndex Int
     | SupriseMe
     | SetSize ThumbnailSize
+    | LoadPhotos (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -146,12 +155,32 @@ update msg model =
         SetSize size ->
             ( { model | choosenSize = size }, Cmd.none )
 
+        LoadPhotos (Ok responseStr) ->
+            let
+                urls : List String
+                urls =
+                    String.split "," responseStr
+
+                photos : List Photo
+                photos =
+                    List.map Photo urls
+            in
+                ( { model
+                    | photos = photos
+                    , selectedUrl = List.head urls
+                  }
+                , Cmd.none
+                )
+
+        LoadPhotos (Err _) ->
+            ( model, Cmd.none )
+
 
 main : Program Never Model Msg
 main =
     Html.program
-        { init = ( initialModel, Cmd.none )
+        { init = ( initialModel, initialCmd )
         , view = view
         , update = update
-        , subscriptions = (\model -> Sub.none)
+        , subscriptions = (\_ -> Sub.none)
         }
