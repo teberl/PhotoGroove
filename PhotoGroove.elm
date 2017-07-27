@@ -47,6 +47,19 @@ viewLargeImage maybeUrl =
             img [ class "large", src (urlPrefix ++ "large/" ++ url) ] []
 
 
+viewOrError : Model -> Html Msg
+viewOrError model =
+    case model.loadingError of
+        Nothing ->
+            view model
+
+        Just errorMessage ->
+            div [ class "error-message" ]
+                [ h1 [] [ text "Photo Groove" ]
+                , p [] [ text errorMessage ]
+                ]
+
+
 view : Model -> Html Msg
 view model =
     div [ class "content" ]
@@ -103,22 +116,6 @@ type alias Model =
     }
 
 
-initialModel : Model
-initialModel =
-    { photos = []
-    , selectedUrl = Nothing
-    , loadingError = Nothing
-    , choosenSize = Medium
-    }
-
-
-initialCmd : Cmd Msg
-initialCmd =
-    "http://elm-in-action.com/photos/list"
-        |> Http.getString
-        |> Http.send LoadPhotos
-
-
 type Msg
     = SelectByUrl String
     | SelectByIndex Int
@@ -173,14 +170,34 @@ update msg model =
                 )
 
         LoadPhotos (Err _) ->
-            ( model, Cmd.none )
+            ( { model
+                | loadingError = Just "Error! (Have you tried to turn it off and on again ?!)"
+              }
+            , Cmd.none
+            )
+
+
+initialModel : Model
+initialModel =
+    { photos = []
+    , selectedUrl = Nothing
+    , loadingError = Nothing
+    , choosenSize = Medium
+    }
+
+
+initialCmd : Cmd Msg
+initialCmd =
+    "http://elm-in-action.com/photos/list"
+        |> Http.getString
+        |> Http.send LoadPhotos
 
 
 main : Program Never Model Msg
 main =
     Html.program
         { init = ( initialModel, initialCmd )
-        , view = view
+        , view = viewOrError
         , update = update
         , subscriptions = (\_ -> Sub.none)
         }
