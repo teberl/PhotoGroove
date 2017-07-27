@@ -2,10 +2,12 @@ module PhotoGroove exposing (..)
 
 import Html exposing (..)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (..)
+import Html.Attributes exposing (id, class, classList, src, name, type_, title, checked)
 import Array exposing (Array)
 import Random
 import Http
+import Json.Decode exposing (string, int, list, Decoder)
+import Json.Decode.Pipeline exposing (decode, required, optional)
 
 
 urlPrefix : String
@@ -105,7 +107,18 @@ sizeToClass size =
 
 
 type alias Photo =
-    { url : String }
+    { url : String
+    , size : Int
+    , title : String
+    }
+
+
+photoDecoder : Decoder Photo
+photoDecoder =
+    decode Photo
+        |> required "url" string
+        |> required "size" int
+        |> optional "title" string "(untitled)"
 
 
 type alias Model =
@@ -121,7 +134,7 @@ type Msg
     | SelectByIndex Int
     | SupriseMe
     | SetSize ThumbnailSize
-    | LoadPhotos (Result Http.Error String)
+    | LoadPhotos (Result Http.Error (List Photo))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -152,22 +165,13 @@ update msg model =
         SetSize size ->
             ( { model | choosenSize = size }, Cmd.none )
 
-        LoadPhotos (Ok responseStr) ->
-            let
-                urls : List String
-                urls =
-                    String.split "," responseStr
-
-                photos : List Photo
-                photos =
-                    List.map Photo urls
-            in
-                ( { model
-                    | photos = photos
-                    , selectedUrl = List.head urls
-                  }
-                , Cmd.none
-                )
+        LoadPhotos (Ok photos) ->
+            ( { model
+                | photos = photos
+                , selectedUrl = Maybe.map .url (List.head photos)
+              }
+            , Cmd.none
+            )
 
         LoadPhotos (Err _) ->
             ( { model
@@ -188,8 +192,8 @@ initialModel =
 
 initialCmd : Cmd Msg
 initialCmd =
-    "http://elm-in-action.com/photos/list"
-        |> Http.getString
+    list photoDecoder
+        |> Http.get "http://elm-in-action.com/photos/list.json"
         |> Http.send LoadPhotos
 
 
