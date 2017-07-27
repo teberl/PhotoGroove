@@ -2,7 +2,7 @@ module PhotoGroove exposing (..)
 
 import Html exposing (..)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (id, class, classList, src, name, type_, title, checked)
+import Html.Attributes exposing (id, class, classList, src, name, type_, title, checked, alt)
 import Array exposing (Array)
 import Random
 import Http
@@ -15,10 +15,17 @@ urlPrefix =
     "http://elm-in-action.com/"
 
 
+generateThumbnailTitleText : Photo -> String
+generateThumbnailTitleText thumbnail =
+    thumbnail.title ++ " [" ++ toString thumbnail.size ++ " KB]"
+
+
 viewThumbnail : Maybe String -> Photo -> Html Msg
 viewThumbnail selectedUrl thumbnail =
     img
         [ src (urlPrefix ++ thumbnail.url)
+        , title (generateThumbnailTitleText thumbnail)
+        , alt (generateThumbnailTitleText thumbnail)
         , classList [ ( "selected", selectedUrl == Just thumbnail.url ) ]
         , onClick (SelectByUrl thumbnail.url)
         ]
