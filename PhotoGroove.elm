@@ -2,7 +2,7 @@ module PhotoGroove exposing (..)
 
 import Html exposing (..)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (id, class, classList, src, name, type_, title, checked, alt)
+import Html.Attributes as Attr exposing (id, class, classList, src, name, type_, title, checked, alt)
 import Array exposing (Array)
 import Random
 import Http
@@ -56,6 +56,20 @@ viewLargeImage maybeUrl =
             img [ class "large", src (urlPrefix ++ "large/" ++ url) ] []
 
 
+paperSlider : List (Attribute msg) -> List (Html msg) -> Html msg
+paperSlider =
+    node "paper-slider"
+
+
+viewFilter : String -> Int -> Html Msg
+viewFilter name magnitude =
+    div [ class "filter-slider" ]
+        [ label [] [ text name ]
+        , paperSlider [ Attr.max "11" ] []
+        , label [] [ text (toString magnitude) ]
+        ]
+
+
 viewOrError : Model -> Html Msg
 viewOrError model =
     case model.loadingError of
@@ -74,6 +88,11 @@ view model =
     div [ class "content" ]
         [ h1 [] [ text "Photo Groove" ]
         , button [ onClick SupriseMe ] [ text "Suprise Me!" ]
+        , div [ class "filters" ]
+            [ viewFilter "Hue" 0
+            , viewFilter "Ripple" 0
+            , viewFilter "Noise" 0
+            ]
         , h3 [] [ text "Thumbnail Size:" ]
         , div [ id "choose-size" ] (List.map (viewSizeChooser model.choosenSize) [ Small, Medium, Large ])
         , div [ id "thumbnails", class (sizeToClass model.choosenSize) ] (List.map (viewThumbnail model.selectedUrl) model.photos)
@@ -130,6 +149,9 @@ photoDecoder =
 
 type alias Model =
     { photos : List Photo
+    , hue : Int
+    , ripple : Int
+    , noise : Int
     , selectedUrl : Maybe String
     , loadingError : Maybe String
     , choosenSize : ThumbnailSize
@@ -138,6 +160,9 @@ type alias Model =
 
 type Msg
     = SelectByUrl String
+    | SetHue Int
+    | SetRipple Int
+    | SetNoise Int
     | SelectByIndex Int
     | SupriseMe
     | SetSize ThumbnailSize
@@ -149,6 +174,15 @@ update msg model =
     case msg of
         SelectByUrl url ->
             ( { model | selectedUrl = Just url }, Cmd.none )
+
+        SetHue hue ->
+            ( { model | hue = hue }, Cmd.none )
+
+        SetRipple ripple ->
+            ( { model | ripple = ripple }, Cmd.none )
+
+        SetNoise noise ->
+            ( { model | noise = noise }, Cmd.none )
 
         SelectByIndex index ->
             let
@@ -191,6 +225,9 @@ update msg model =
 initialModel : Model
 initialModel =
     { photos = []
+    , hue = 0
+    , ripple = 0
+    , noise = 0
     , selectedUrl = Nothing
     , loadingError = Nothing
     , choosenSize = Medium
