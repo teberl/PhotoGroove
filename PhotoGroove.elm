@@ -1,12 +1,12 @@
-module PhotoGroove exposing (..)
+port module PhotoGroove exposing (..)
 
 import Html exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, on)
 import Html.Attributes as Attr exposing (id, class, classList, src, name, type_, title, checked, alt)
 import Array exposing (Array)
 import Random
 import Http
-import Json.Decode exposing (string, int, list, Decoder)
+import Json.Decode exposing (string, int, list, Decoder, at)
 import Json.Decode.Pipeline exposing (decode, required, optional)
 
 
@@ -53,7 +53,7 @@ viewLargeImage maybeUrl =
             text ""
 
         Just url ->
-            img [ class "large", src (urlPrefix ++ "large/" ++ url) ] []
+            canvas [ id "main-canvas", class "large" ] []
 
 
 paperSlider : List (Attribute msg) -> List (Html msg) -> Html msg
@@ -61,11 +61,27 @@ paperSlider =
     node "paper-slider"
 
 
-viewFilter : String -> Int -> Html Msg
-viewFilter name magnitude =
+onImmediateValueChange : (Int -> msg) -> Attribute msg
+onImmediateValueChange toMsg =
+    -- let
+    --     targetImmediateValue : Decoder Int
+    --     targetImmediateValue =
+    --         at [ "target", "immediateValue" ] int
+    --     msgDecoder : Decoder msg
+    --     msgDecoder =
+    --         Json.Decode.map toMsg targetImmediateValue
+    -- in
+    --     on "immediate-value-change" msgDecoder
+    at [ "target", "immediateValue" ] int
+        |> Json.Decode.map toMsg
+        |> on "immediate-value-changed"
+
+
+viewFilter : String -> (Int -> Msg) -> Int -> Html Msg
+viewFilter name toMsg magnitude =
     div [ class "filter-slider" ]
         [ label [] [ text name ]
-        , paperSlider [ Attr.max "11" ] []
+        , paperSlider [ Attr.max "11", onImmediateValueChange toMsg ] []
         , label [] [ text (toString magnitude) ]
         ]
 
@@ -88,14 +104,20 @@ view model =
     div [ class "content" ]
         [ h1 [] [ text "Photo Groove" ]
         , button [ onClick SupriseMe ] [ text "Suprise Me!" ]
+        , div [ class "status" ] [ text model.status ]
         , div [ class "filters" ]
-            [ viewFilter "Hue" 0
-            , viewFilter "Ripple" 0
-            , viewFilter "Noise" 0
+            [ viewFilter "Hue" SetHue model.hue
+            , viewFilter "Ripple" SetRipple model.ripple
+            , viewFilter "Noise" SetNoise model.noise
             ]
         , h3 [] [ text "Thumbnail Size:" ]
-        , div [ id "choose-size" ] (List.map (viewSizeChooser model.choosenSize) [ Small, Medium, Large ])
-        , div [ id "thumbnails", class (sizeToClass model.choosenSize) ] (List.map (viewThumbnail model.selectedUrl) model.photos)
+        , div [ id "choose-size" ]
+            (List.map (viewSizeChooser model.choosenSize) [ Small, Medium, Large ])
+        , div
+            [ id "thumbnails"
+            , class (sizeToClass model.choosenSize)
+            ]
+            (List.map (viewThumbnail model.selectedUrl) model.photos)
         , viewLargeImage model.selectedUrl
         ]
 
@@ -132,6 +154,18 @@ sizeToClass size =
             "large"
 
 
+port setFilters : FilterOptions -> Cmd msg
+
+
+port statusChanges : (String -> msg) -> Sub msg
+
+
+type alias FilterOptions =
+    { url : String
+    , filters : List { name : String, amount : Float }
+    }
+
+
 type alias Photo =
     { url : String
     , size : Int
@@ -149,6 +183,7 @@ photoDecoder =
 
 type alias Model =
     { photos : List Photo
+    , status : String
     , hue : Int
     , ripple : Int
     , noise : Int
@@ -160,6 +195,7 @@ type alias Model =
 
 type Msg
     = SelectByUrl String
+    | SetStatus String
     | SetHue Int
     | SetRipple Int
     | SetNoise Int
@@ -169,20 +205,43 @@ type Msg
     | LoadPhotos (Result Http.Error (List Photo))
 
 
+applyFilters : Model -> ( Model, Cmd Msg )
+applyFilters model =
+    case model.selectedUrl of
+        Just selectedUrl ->
+            let
+                filters =
+                    [ { name = "Hue", amount = toFloat model.hue / 11 }
+                    , { name = "Ripple", amount = toFloat model.ripple / 11 }
+                    , { name = "Noise", amount = toFloat model.noise / 11 }
+                    ]
+
+                url =
+                    urlPrefix ++ "large/" ++ selectedUrl
+            in
+                ( model, setFilters { url = url, filters = filters } )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         SelectByUrl url ->
-            ( { model | selectedUrl = Just url }, Cmd.none )
+            applyFilters { model | selectedUrl = Just url }
+
+        SetStatus status ->
+            ( { model | status = status }, Cmd.none )
 
         SetHue hue ->
-            ( { model | hue = hue }, Cmd.none )
+            applyFilters { model | hue = hue }
 
         SetRipple ripple ->
-            ( { model | ripple = ripple }, Cmd.none )
+            applyFilters { model | ripple = ripple }
 
         SetNoise noise ->
-            ( { model | noise = noise }, Cmd.none )
+            applyFilters { model | noise = noise }
 
         SelectByIndex index ->
             let
@@ -193,7 +252,7 @@ update msg model =
                         |> Array.get index
                         |> Maybe.map .url
             in
-                ( { model | selectedUrl = newSelectedUrl }, Cmd.none )
+                applyFilters { model | selectedUrl = newSelectedUrl }
 
         SupriseMe ->
             let
@@ -207,12 +266,8 @@ update msg model =
             ( { model | choosenSize = size }, Cmd.none )
 
         LoadPhotos (Ok photos) ->
-            ( { model
-                | photos = photos
-                , selectedUrl = Maybe.map .url (List.head photos)
-              }
-            , Cmd.none
-            )
+            applyFilters
+                { model | photos = photos, selectedUrl = Maybe.map .url (List.head photos) }
 
         LoadPhotos (Err _) ->
             ( { model
@@ -225,6 +280,7 @@ update msg model =
 initialModel : Model
 initialModel =
     { photos = []
+    , status = ""
     , hue = 0
     , ripple = 0
     , noise = 0
@@ -241,11 +297,20 @@ initialCmd =
         |> Http.send LoadPhotos
 
 
-main : Program Never Model Msg
+init : Float -> ( Model, Cmd Msg )
+init flags =
+    let
+        status =
+            "Initializing Pasta v" ++ toString flags
+    in
+        ( { initialModel | status = status }, initialCmd )
+
+
+main : Program Float Model Msg
 main =
-    Html.program
-        { init = ( initialModel, initialCmd )
+    Html.programWithFlags
+        { init = init
         , view = viewOrError
         , update = update
-        , subscriptions = (\_ -> Sub.none)
+        , subscriptions = \_ -> statusChanges SetStatus
         }
